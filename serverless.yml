@@ -1,0 +1,69 @@
+# serverless.yml
+
+service: serverless-nodejs-app
+
+provider:
+  name: aws
+  runtime: nodejs16.x
+  stage: dev
+  region: us-east-1
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+      Resource: "*"
+
+resources: # CloudFormation template syntax from here on.
+  Resources:
+    usersTable:
+        Type: AWS::DynamoDB::Table
+        Properties:
+          TableName: users
+          AttributeDefinitions:
+            - AttributeName: username
+              AttributeType: S
+            - AttributeName: email
+              AttributeType: S
+          KeySchema:
+            - AttributeName: username
+              KeyType: HASH
+          BillingMode: PAY_PER_REQUEST
+          GlobalSecondaryIndexes:
+            - IndexName: email-index
+              KeySchema:
+                - AttributeName: email
+                  KeyType: HASH
+              Projection:
+                NonKeyAttributes:
+                  - id
+                  - username
+                  - roles
+                ProjectionType: INCLUDE 
+
+functions:
+  app:
+    handler: app.server # reference the file and exported method
+    events: # events trigger lambda functions
+      - http: # this is an API Gateway HTTP event trigger
+          path: /
+          method: ANY
+          cors: true
+      - http: # this is an API Gateway HTTP event trigger
+          path: /api/test/all
+          method: ANY
+          cors: true
+      - http: # this is an API Gateway HTTP event trigger
+          path: /api/test/user
+          method: ANY
+          cors: true
+      - http: # this is an API Gateway HTTP event trigger
+          path: /api/auth/signup
+          method: post
+          cors: true
+      - http: # all routes get proxied to the Express router
+          path: /{proxy+}
+          method: ANY
+          cors: true
